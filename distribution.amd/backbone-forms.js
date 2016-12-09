@@ -521,7 +521,8 @@ Form.validators = (function() {
       var err = {
         type: options.type,
         message: _.isFunction(options.message) ? options.message(options) : options.message
-      };
+      },
+      $ = Backbone.$;
 
       if (value === null || value === undefined || value === false || value === '' || $.trim(value) === '' ) return err;
     };
@@ -938,6 +939,29 @@ Form.Field = Backbone.View.extend({
   },
 
   /**
+   * Check if the $element is a jQuery :input
+   *
+   * @param  {jQuery selector}  $input the item to check
+   * @return {Boolean}        true if it satisfies
+   * http://api.jquery.com/input-selector/
+   */
+  _isInput: function($input) {
+    return $input.is('input') || $input.is('textarea') ||
+        $input.is('select') || $input.is('button');
+  },
+
+  /**
+   * Return all the :input elements inside $el
+   *
+   * @param  {jQuery selector}  $el the item to search
+   * @return {Array}       Any elements that would be found by $el.find(':input')
+   * http://api.jquery.com/input-selector/
+   */
+  _getInputs: function($el) {
+    return $el.find('input,textarea,select,button');
+  },
+
+  /**
    * Disable the field's editor
    * Will call the editor's disable method if it exists
    * Otherwise will add the disabled attribute to all inputs in the editor
@@ -948,7 +972,7 @@ Form.Field = Backbone.View.extend({
     }
     else {
       $input = this.editor.$el;
-      $input = $input.is("input") ? $input : $input.find("input");
+      $input = this._isInput($input) ? $input : this._getInputs($input);
       $input.attr("disabled",true);
     }
   },
@@ -964,7 +988,7 @@ Form.Field = Backbone.View.extend({
     }
     else {
       $input = this.editor.$el;
-      $input = $input.is("input") ? $input : $input.find("input");
+      $input = this._isInput($input) ? $input : this._getInputs($input);
       $input.attr("disabled",false);
     }
   },
@@ -1092,7 +1116,7 @@ Form.Field = Backbone.View.extend({
 //NESTEDFIELD
 //==================================================================================================
 
-Form.NestedField = Form.Field.extend({
+Form.NestedField = Form.Field.extend({}, {
 
   template: _.template('\
     <div>\
@@ -1387,6 +1411,7 @@ Form.editors.Text = Form.Editor.extend({
   setValue: function(value) {
     this.value = value;
     this.$el.val(value);
+    this.previousValue = this.$el.val();
   },
 
   focus: function() {
@@ -1447,7 +1472,8 @@ Form.editors.Number = Form.editors.Text.extend({
 
   events: _.extend({}, Form.editors.Text.prototype.events, {
     'keypress': 'onKeyPress',
-    'change': 'onKeyPress'
+    'change': 'onKeyPress',
+    'input':    'determineChange'
   }),
 
   initialize: function(options) {
@@ -1487,7 +1513,7 @@ Form.editors.Number = Form.editors.Text.extend({
       newVal = newVal + String.fromCharCode(event.charCode);
     }
 
-    var numeric = /^[0-9]*\.?[0-9]*?$/.test(newVal);
+    var numeric = /^-?[0-9]*\.?[0-9]*$/.test(newVal);
 
     if (numeric) {
       delayedDetermineChange();
